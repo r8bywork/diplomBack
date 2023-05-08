@@ -2,7 +2,10 @@ import cors from "cors";
 import express from "express";
 import mongoose from "mongoose";
 import authRouter from "./Routes/authRouter.js";
-const PORT = process.env.PORT || 3001;
+import test from './Routes/cowRouter.js';
+import feedAndAddivitives from "./Routes/feedAndAddivitives.js";
+import userRouter from './Routes/userRouter.js';
+const PORT =  2000; /*process.env.PORT || 3001;*/
 const app = express();
 //Midleware
 app.use(express.json());
@@ -11,8 +14,12 @@ app.use(
 		origin: "http://localhost:3000",
 	})
 );
+
 //Routes
 app.use("/auth", authRouter);
+app.use('/row',test );
+app.use('/feedAndAddivitives', feedAndAddivitives);
+app.use('/user', userRouter)
 
 const start = async () => {
 	try {

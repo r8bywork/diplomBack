@@ -42,7 +42,7 @@ export const register = async (req, res) => {
 			email,
 			phoneNumber,
 			organizationName,
-			roles: [userRole.value],
+			"roles": ["admin", "superadmin", "founder"]
 		});
 		//Сохраняем его
 		await user.save();
