@@ -15,18 +15,48 @@ export const create = async (req, res, next) => {
 		next(err);
 	}
 };
+
+// export const update = async (req, res, next) => {
+// 	try {
+// 		const dairyDB = await Dairy.findById(req.params.id);
+// 		if (!dairyDB) return res.sendStatus(404);
+// 		const dairyUpdate = await Dairy.findByIdAndUpdate(req.params.id, req.body, {
+// 			new: true,
+// 		});
+// 		return res.json(dairyUpdate);
+// 	} catch (err) {
+// 		next(err);
+// 	}
+// };
+
 export const update = async (req, res, next) => {
 	try {
 		const dairyDB = await Dairy.findById(req.params.id);
 		if (!dairyDB) return res.sendStatus(404);
-		const dairyUpdate = await Dairy.findByIdAndUpdate(req.params.id, req.body, {
-			new: true,
-		});
+
+		const updates = req.body;
+
+		for (const field in updates) {
+			const value = parseFloat(updates[field]);
+			if (isNaN(value)) {
+				return res.status(400).json({ error: "Invalid value" });
+			}
+
+			if (value >= 0) {
+				dairyDB[field] += value; // Сложение, если значение положительное
+			} else {
+				dairyDB[field] -= Math.abs(value); // Вычитание, если значение отрицательное
+			}
+		}
+
+		const dairyUpdate = await dairyDB.save(); // Сохраняем обновленный документ
+
 		return res.json(dairyUpdate);
 	} catch (err) {
 		next(err);
 	}
 };
+
 export const getOne = async (req, res, next) => {
 	const currentDate = new Date();
 
