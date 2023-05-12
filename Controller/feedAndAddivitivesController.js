@@ -32,11 +32,12 @@ export const update = async (req, res, next) => {
 
 export const remove = async (req, res, next) => {
 	try {
-		console.log("asd");
-		const dairyDB = await FeedAndAddivitives.findById(req.params.id);
-		if (!dairyDB) return res.sendStatus(404);
-		await FeedAndAddivitives.findOneAndRemove({ _id: req.params.id });
-		return res.sendStatus(204);
+		const feedId = req.params.id;
+		const result = await FeedAndAddivitives.updateOne(
+			{},
+			{ $pull: { feed_and_additives: { _id: feedId } } }
+		);
+		res.json(result);
 	} catch (err) {
 		next(err);
 	}
