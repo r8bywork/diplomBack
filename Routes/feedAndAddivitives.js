@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+	changeFeed,
 	find,
 	getByExpression,
 	getOne,
@@ -9,6 +10,7 @@ import {
 const router = new Router();
 
 router.post("/update", update);
+router.put("/change", changeFeed);
 router.get("/find", find);
 router.get("/", getByExpression);
 router.delete("/:id/", remove);

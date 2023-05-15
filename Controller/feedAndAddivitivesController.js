@@ -30,6 +30,46 @@ export const update = async (req, res, next) => {
 	}
 };
 
+export const changeFeed = async (req, res, next) => {
+	try {
+		console.log(req.body);
+		const { feed } = req.body;
+		const { feedId, name, balance, daily_requirement } = feed;
+		// const { feedId, name, balance, dailyRequirement } = req.body;
+
+		// Find the document that contains the feed with the given ID
+		const document = await FeedAndAddivitives.findOne({
+			"feed_and_additives._id": feedId,
+		});
+
+		if (!document) {
+			return res.status(404).json({ message: "Feed not found" });
+		}
+
+		// Find the index of the feed within the array
+		const feedIndex = document.feed_and_additives.findIndex(
+			(feed) => feed._id.toString() === feedId
+		);
+
+		if (feedIndex === -1) {
+			return res.status(404).json({ message: "Feed not found" });
+		}
+
+		// Update the name, balance, and dailyRequirement of the feed
+		document.feed_and_additives[feedIndex].name = name;
+		document.feed_and_additives[feedIndex].balance = balance;
+		document.feed_and_additives[feedIndex].daily_requirement =
+			daily_requirement;
+
+		// Save the updated document
+		const updatedDocument = await document.save();
+
+		res.json(updatedDocument);
+	} catch (err) {
+		next(err);
+	}
+};
+
 export const remove = async (req, res, next) => {
 	try {
 		const feedId = req.params.id;
