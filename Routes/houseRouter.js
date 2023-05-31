@@ -12,8 +12,8 @@ const router = new Router();
 router.post("/add", addHouse);
 // Update an existing house
 router.put("/update", updateHouse);
+// Get all houses
+router.get("/get", getAllHouses);
 // Delete a house
 router.delete("/:id", deleteHouse);
-// Get all houses
-router.get("/", getAllHouses);
 export default router;

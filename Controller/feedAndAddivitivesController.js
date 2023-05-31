@@ -1,31 +1,72 @@
-import mongoose from "mongoose";
 import FeedAndAddivitives from "../Models/feedAndAddivitives.js";
+import User from "../Models/User.js";
+// export const update = async (req, res, next) => {
+// 	try {
+// 		const collectionExists = await mongoose.connection.db
+// 			.listCollections({ name: "feedandaddivitives" })
+// 			.hasNext();
+// 		if (!collectionExists) {
+// 			await mongoose.connection.createCollection("feedandaddivitives");
+// 			console.log("FeedAndAddivitives collection created");
+// 		}
+
+// 		const foundDocument = await FeedAndAddivitives.findOne({});
+// 		if (!foundDocument) {
+// 			const newDocument = new FeedAndAddivitives();
+// 			newDocument.feed_and_additives.push(req.body);
+// 			await newDocument.save();
+// 			console.log("New document created and feed added:", newDocument);
+// 			return res.json(newDocument);
+// 		}
+
+// 		foundDocument.feed_and_additives.push(req.body);
+// 		const updatedDocument = await foundDocument.save();
+// 		console.log("New feed added to existing document:", updatedDocument);
+// 		return res.json(updatedDocument);
+// 	} catch (err) {
+// 		console.error("Failed to create FeedAndAddivitives collection:", err);
+// 		next(err);
+// 	}
+// };
 
 export const update = async (req, res, next) => {
 	try {
-		const collectionExists = await mongoose.connection.db
-			.listCollections({ name: "feedandaddivitives" })
-			.hasNext();
-		if (!collectionExists) {
-			await mongoose.connection.createCollection("feedandaddivitives");
-			console.log("FeedAndAddivitives collection created");
+		console.log(req.body);
+		const userId = req.body.userId;
+		const { name, balance, daily_requirement } = req.body.feed_and_additives[0];
+
+		// Find the user by their ID
+		const user = await User.findById(userId);
+		if (!user) {
+			return res.status(404).json({ message: "User not found" });
 		}
 
-		const foundDocument = await FeedAndAddivitives.findOne({});
-		if (!foundDocument) {
-			const newDocument = new FeedAndAddivitives();
-			newDocument.feed_and_additives.push(req.body);
+		// Check if the user has a reference to the FeedAndAddivitives document
+		if (!user.feedAndAdditives) {
+			// If no reference exists, create a new document
+			const newDocument = new FeedAndAddivitives({
+				feed_and_additives: [{ name, balance, daily_requirement }],
+			});
 			await newDocument.save();
-			console.log("New document created and feed added:", newDocument);
-			return res.json(newDocument);
-		}
 
-		foundDocument.feed_and_additives.push(req.body);
-		const updatedDocument = await foundDocument.save();
-		console.log("New feed added to existing document:", updatedDocument);
-		return res.json(updatedDocument);
+			// Update the user with the reference to the new document
+			user.feedAndAdditives = newDocument._id;
+			await user.save();
+
+			return res.json(newDocument);
+		} else {
+			// If a reference exists, update the existing document
+			const document = await FeedAndAddivitives.findById(user.feedAndAdditives);
+			if (!document) {
+				return res.status(404).json({ message: "Document not found" });
+			}
+
+			document.feed_and_additives.push({ name, balance, daily_requirement });
+			const updatedDocument = await document.save();
+
+			return res.json(updatedDocument);
+		}
 	} catch (err) {
-		console.error("Failed to create FeedAndAddivitives collection:", err);
 		next(err);
 	}
 };
@@ -72,12 +113,34 @@ export const changeFeed = async (req, res, next) => {
 
 export const remove = async (req, res, next) => {
 	try {
-		const feedId = req.params.id;
-		const result = await FeedAndAddivitives.updateOne(
-			{},
-			{ $pull: { feed_and_additives: { _id: feedId } } }
+		const documentId = req.params.id; // ID of the document to delete
+
+		// Find the FeedAndAddivitives document
+		const document = await FeedAndAddivitives.findOne({
+			"feed_and_additives._id": documentId,
+		});
+		if (!document) {
+			return res.status(404).json({ message: "Document not found" });
+		}
+
+		// Find the index of the object to delete
+		const index = document.feed_and_additives.findIndex(
+			(item) => item._id.toString() === documentId
 		);
-		res.json(result);
+
+		if (index === -1) {
+			return res
+				.status(404)
+				.json({ message: "Object not found in the document" });
+		}
+
+		// Remove the object from the feed_and_additives array
+		document.feed_and_additives.splice(index, 1);
+
+		// Save the updated document
+		await document.save();
+
+		return res.json({ message: "Object deleted from the document" });
 	} catch (err) {
 		next(err);
 	}
@@ -85,82 +148,26 @@ export const remove = async (req, res, next) => {
 
 export const find = async (req, res, next) => {
 	try {
-		const feedAndAddivitives = await FeedAndAddivitives.find({});
-		return res.json(feedAndAddivitives);
+		const { userId } = req.query;
+
+		// Find the user by their ID
+		const user = await User.findById(userId).populate("feedAndAdditives");
+		if (!user) {
+			return res.status(404).json({ message: "User not found" });
+		}
+
+		// Check if the user has a reference to the FeedAndAddivitives document
+		if (!user.feedAndAdditives) {
+			return res
+				.status(404)
+				.json({ message: "Document not found for the user" });
+		}
+
+		// Retrieve the FeedAndAddivitives document associated with the user
+		const document = user.feedAndAdditives;
+
+		return res.json(document);
 	} catch (err) {
 		next(err);
 	}
-};
-
-export const getOne = async (req, res, next) => {
-	const currentDate = new Date();
-
-	currentDate.setHours(3, 0, 0, 0);
-	const nextDay = new Date();
-	nextDay.setHours(3, 0, 0, 0);
-	nextDay.setDate(nextDay.getDate() + 1);
-	// console.log("current date", currentDate.toISOString());
-	// console.log("next day", nextDay);
-	const aggregate = await FeedAndAddivitives.aggregate([
-		{
-			$match: {
-				_id: new mongoose.Types.ObjectId(req.params.id),
-			},
-		},
-		{
-			$lookup: {
-				from: "dairies",
-				let: { feedAndAddivitives: "$_id" },
-				pipeline: [
-					{
-						$match: {
-							$and: [
-								{
-									$expr: {
-										$eq: ["$feedAndAddivitives", "$$feedAndAddivitives"],
-									},
-								},
-								{ createdAt: { $gte: currentDate } },
-								{ createdAt: { $lte: nextDay } },
-							],
-						},
-					},
-				],
-				as: "daires",
-			},
-		},
-	]);
-	return res.json(aggregate);
-};
-
-export const getByExpression = async (req, res, next) => {
-	const [date] = [req.query.date];
-	// console.log("req query", req.query);
-	// console.log("date", date);
-	const splitDate = date.split(";;");
-	const aggregate = await FeedAndAddivitives.aggregate([
-		{
-			$lookup: {
-				from: "dairies",
-				let: { feedAndAddivitives: "$_id" },
-				pipeline: [
-					{
-						$match: {
-							$and: [
-								{
-									$expr: {
-										$eq: ["$feedAndAddivitives", "$$feedAndAddivitives"],
-									},
-								},
-								{ createdAt: { $gte: new Date(splitDate[0]) } },
-								{ createdAt: { $lte: new Date(splitDate[1]) } },
-							],
-						},
-					},
-				],
-				as: "daires",
-			},
-		},
-	]);
-	return res.json(aggregate);
 };
