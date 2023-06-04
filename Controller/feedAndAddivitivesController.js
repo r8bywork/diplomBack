@@ -1,30 +1,45 @@
 import FeedAndAddivitives from "../Models/feedAndAddivitives.js";
 import User from "../Models/User.js";
+import Worker from "../Models/Worker.js";
+
 // export const update = async (req, res, next) => {
 // 	try {
-// 		const collectionExists = await mongoose.connection.db
-// 			.listCollections({ name: "feedandaddivitives" })
-// 			.hasNext();
-// 		if (!collectionExists) {
-// 			await mongoose.connection.createCollection("feedandaddivitives");
-// 			console.log("FeedAndAddivitives collection created");
+// 		console.log(req.body);
+// 		const userId = req.body.userId;
+// 		const { name, balance, daily_requirement } = req.body.feed_and_additives[0];
+
+// 		// Find the user by their ID
+// 		const user = await User.findById(userId);
+// 		if (!user) {
+// 			return res.status(404).json({ message: "User not found" });
 // 		}
 
-// 		const foundDocument = await FeedAndAddivitives.findOne({});
-// 		if (!foundDocument) {
-// 			const newDocument = new FeedAndAddivitives();
-// 			newDocument.feed_and_additives.push(req.body);
+// 		// Check if the user has a reference to the FeedAndAddivitives document
+// 		if (!user.feedAndAdditives) {
+// 			// If no reference exists, create a new document
+// 			const newDocument = new FeedAndAddivitives({
+// 				feed_and_additives: [{ name, balance, daily_requirement }],
+// 			});
 // 			await newDocument.save();
-// 			console.log("New document created and feed added:", newDocument);
-// 			return res.json(newDocument);
-// 		}
 
-// 		foundDocument.feed_and_additives.push(req.body);
-// 		const updatedDocument = await foundDocument.save();
-// 		console.log("New feed added to existing document:", updatedDocument);
-// 		return res.json(updatedDocument);
+// 			// Update the user with the reference to the new document
+// 			user.feedAndAdditives = newDocument._id;
+// 			await user.save();
+
+// 			return res.json(newDocument);
+// 		} else {
+// 			// If a reference exists, update the existing document
+// 			const document = await FeedAndAddivitives.findById(user.feedAndAdditives);
+// 			if (!document) {
+// 				return res.status(404).json({ message: "Document not found" });
+// 			}
+
+// 			document.feed_and_additives.push({ name, balance, daily_requirement });
+// 			const updatedDocument = await document.save();
+
+// 			return res.json(updatedDocument);
+// 		}
 // 	} catch (err) {
-// 		console.error("Failed to create FeedAndAddivitives collection:", err);
 // 		next(err);
 // 	}
 // };
@@ -35,28 +50,36 @@ export const update = async (req, res, next) => {
 		const userId = req.body.userId;
 		const { name, balance, daily_requirement } = req.body.feed_and_additives[0];
 
-		// Find the user by their ID
+		// Find the user or worker by their ID
 		const user = await User.findById(userId);
-		if (!user) {
-			return res.status(404).json({ message: "User not found" });
+		const worker = await Worker.findById(userId);
+		if (!user && !worker) {
+			return res.status(404).json({ message: "User or worker not found" });
 		}
 
-		// Check if the user has a reference to the FeedAndAddivitives document
-		if (!user.feedAndAdditives) {
+		// Check if the user or worker has a reference to the FeedAndAdditives document
+		if (!user?.feedAndAdditives && !worker?.feedAndAdditives) {
 			// If no reference exists, create a new document
-			const newDocument = new FeedAndAddivitives({
+			const newDocument = new FeedAndAdditives({
 				feed_and_additives: [{ name, balance, daily_requirement }],
 			});
 			await newDocument.save();
 
-			// Update the user with the reference to the new document
-			user.feedAndAdditives = newDocument._id;
-			await user.save();
+			// Update the user or worker with the reference to the new document
+			if (user) {
+				user.feedAndAdditives = newDocument._id;
+				await user.save();
+			} else {
+				worker.feedAndAdditives = newDocument._id;
+				await worker.save();
+			}
 
 			return res.json(newDocument);
 		} else {
 			// If a reference exists, update the existing document
-			const document = await FeedAndAddivitives.findById(user.feedAndAdditives);
+			const document = await FeedAndAddivitives.findById(
+				user?.feedAndAdditives || worker?.feedAndAdditives
+			);
 			if (!document) {
 				return res.status(404).json({ message: "Document not found" });
 			}
@@ -152,20 +175,22 @@ export const find = async (req, res, next) => {
 
 		// Find the user by their ID
 		const user = await User.findById(userId).populate("feedAndAdditives");
-		if (!user) {
+		const worker = await Worker.findById(userId).populate("feedAndAdditives");
+
+		if (!worker && !user) {
 			return res.status(404).json({ message: "User not found" });
 		}
 
-		// Check if the user has a reference to the FeedAndAddivitives document
-		if (!user.feedAndAdditives) {
+		let document;
+		if (user && user?.feedAndAdditives) {
+			document = user.feedAndAdditives;
+		} else if (worker && worker?.feedAndAdditives?.feed_and_additives) {
+			document = worker.feedAndAdditives;
+		} else {
 			return res
 				.status(404)
 				.json({ message: "Document not found for the user" });
 		}
-
-		// Retrieve the FeedAndAddivitives document associated with the user
-		const document = user.feedAndAdditives;
-
 		return res.json(document);
 	} catch (err) {
 		next(err);

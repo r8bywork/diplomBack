@@ -1,22 +1,66 @@
 // import House from "../Models/House";
 import House from "../Models/House.js";
 import User from "../Models/User.js";
+import Worker from "../Models/Worker.js";
 
 //good
+// export const addHouse = async (req, res, next) => {
+// 	try {
+// 		console.log(req.body);
+// 		const { name, cowsCount } = req.body.houses[0];
+// 		const newHouse = { name, cowsCount };
+
+// 		// Find the user by their username (or any other identifier)
+// 		const user = await User.findOne({ username: req.body.username }); // Assuming you have a way to retrieve the authenticated user's username or other identifier
+// 		if (!user) {
+// 			return res.status(404).json({ message: "User not found" });
+// 		}
+
+// 		// Check if the user already has a house document
+// 		if (user.house) {
+// 			const existingHouse = await House.findById(user.house);
+// 			if (!existingHouse) {
+// 				return res
+// 					.status(404)
+// 					.json({ message: "House document not found for the user" });
+// 			}
+
+// 			existingHouse.houses.push(newHouse);
+// 			await existingHouse.save();
+
+// 			return res.json(existingHouse);
+// 		}
+
+// 		const newDocument = new House({ houses: [newHouse] });
+// 		const savedDocument = await newDocument.save();
+
+// 		// Associate the new house document with the user
+// 		user.house = savedDocument._id;
+// 		await user.save();
+
+// 		return res.json(savedDocument);
+// 	} catch (err) {
+// 		next(err);
+// 	}
+// };
+
 export const addHouse = async (req, res, next) => {
 	try {
 		console.log(req.body);
 		const { name, cowsCount } = req.body.houses[0];
+		const username = req.body.username;
 		const newHouse = { name, cowsCount };
 
 		// Find the user by their username (or any other identifier)
-		const user = await User.findOne({ username: req.body.username }); // Assuming you have a way to retrieve the authenticated user's username or other identifier
-		if (!user) {
-			return res.status(404).json({ message: "User not found" });
+		const user = await User.findById(username).populate("house");
+		const worker = await Worker.findById(username).populate("house");
+
+		if (!worker && !user) {
+			return res.status(404).json({ message: "User or Worker not found" });
 		}
 
-		// Check if the user already has a house document
-		if (user.house) {
+		// Check if the user or worker already has a house document
+		if (user && user.house) {
 			const existingHouse = await House.findById(user.house);
 			if (!existingHouse) {
 				return res
@@ -28,14 +72,25 @@ export const addHouse = async (req, res, next) => {
 			await existingHouse.save();
 
 			return res.json(existingHouse);
+		} else if (worker && worker.house) {
+			const existingHouse = worker.house;
+			existingHouse.houses.push(newHouse);
+			await existingHouse.save();
+
+			return res.json(existingHouse);
 		}
 
 		const newDocument = new House({ houses: [newHouse] });
 		const savedDocument = await newDocument.save();
 
-		// Associate the new house document with the user
-		user.house = savedDocument._id;
-		await user.save();
+		// Associate the new house document with the user or worker
+		if (user) {
+			user.house = savedDocument._id;
+			await user.save();
+		} else if (worker) {
+			worker.house = savedDocument._id;
+			await worker.save();
+		}
 
 		return res.json(savedDocument);
 	} catch (err) {
@@ -120,14 +175,24 @@ export const getAllHouses = async (req, res, next) => {
 
 		// Находим документ пользователя по идентификатору
 		const user = await User.findById(userId).populate("house");
+		const worker = await Worker.findById(userId).populate("house");
 
-		if (!user) {
+		if (!worker && !user) {
 			return res.status(404).json({ message: "User not found" });
 		}
 
-		// Получаем домики, связанные с пользователем
-		const houses = user.house;
+		let houses;
+		if (user && user?.house) {
+			houses = user.house;
+		} else if (worker && worker?.house) {
+			houses = worker.house;
+		} else {
+			return res
+				.status(404)
+				.json({ message: "Document not found for the user" });
+		}
 
+		// Получаем домики, связанные с пользователем
 		res.json(houses);
 	} catch (err) {
 		next(err);

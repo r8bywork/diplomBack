@@ -3,8 +3,8 @@ import { Schema, model } from "mongoose";
 const WorkerSchema = new Schema({
 	workers: [
 		{
-			username: { type: String, required: true },
-			name: { type: String, required: false },
+			username: { type: String, required: true, select: true },
+			name: { type: String, required: false, select: true },
 			password: { type: String, required: false },
 			roles: [String],
 		},

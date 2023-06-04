@@ -51,7 +51,7 @@ export const register = async (req, res) => {
 		return res.json({ message: "Успешно" });
 	} catch (e) {
 		//Иначе выкидываем ошибку
-		console.log(e);
+		// console.log(e);
 		res.status(400).json({ message: "Ошибка" });
 	}
 };
@@ -125,7 +125,7 @@ export const getUserInfo = async (req, res) => {
 	const token = req.headers.authorization.split(" ")[1];
 	try {
 		const decodedToken = jwt.verify(token, secret);
-		console.log(decodedToken);
+		console.log("decoded ", decodedToken);
 		return res.json(decodedToken.roles);
 		// const user = await User.findById(decodedToken.roles).populate("roles");
 		// console.log(user);
@@ -139,16 +139,47 @@ export const getUserInfo = async (req, res) => {
 	}
 };
 
+// export const getUser = async (req, res, next) => {
+// 	const authHeader = req.headers.authorization;
+// 	if (authHeader && authHeader.startsWith("Bearer ")) {
+// 		const token = authHeader.split(" ")[1];
+// 		const decoded = jwt.verify(token, secret);
+// 		console.log(decoded);
+// 		const user = await User.findById(decoded.id);
+// 		if (!user) {
+// 			return res.status(401).json({ message: "Invalid token" });
+// 		}
+// 		req.user = user;
+// 		next();
+// 	} else {
+// 		return res.status(401).json({ message: "No token provided" });
+// 	}
+// };
+
 export const getUser = async (req, res, next) => {
+	console.clear();
 	const authHeader = req.headers.authorization;
 	if (authHeader && authHeader.startsWith("Bearer ")) {
 		const token = authHeader.split(" ")[1];
 		const decoded = jwt.verify(token, secret);
+		console.log(decoded);
 		const user = await User.findById(decoded.id);
-		if (!user) {
+		// const worker = await Worker.findById(decoded.id); // Добавляем поиск рабочего по ID
+		const worker = await Worker.findById(decoded.id)
+			.select("username roles house dairy feedAndAdditives")
+			.populate(["house", "dairy", "feedAndAdditives"]);
+		console.log(decoded.id);
+		if (!user && !worker) {
 			return res.status(401).json({ message: "Invalid token" });
 		}
-		req.user = user;
+
+		// Если пользователь является рабочим, устанавливаем его в req.worker
+		if (worker) {
+			req.worker = worker;
+		} else {
+			req.user = user;
+		}
+
 		next();
 	} else {
 		return res.status(401).json({ message: "No token provided" });

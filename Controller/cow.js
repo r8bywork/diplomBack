@@ -1,5 +1,6 @@
 import Dairy from "../Models/cowSchema.js";
 import User from "../Models/User.js";
+import Worker from "../Models/Worker.js";
 
 export const create = async (req, res, next) => {
 	try {
@@ -65,11 +66,19 @@ export const update = async (req, res, next) => {
 		const updates = req.body;
 
 		const user = await User.findById(userId).populate("dairy");
-		if (!user) {
-			return res.status(404).json({ message: "User not found" });
+		const worker = await Worker.findById(userId).populate("dairy");
+
+		let dairy;
+		if (user && user?.dairy) {
+			dairy = user.dairy;
+		} else if (worker && worker?.dairy) {
+			dairy = worker.dairy;
+		} else {
+			return res
+				.status(404)
+				.json({ message: "Document not found for the user" });
 		}
 
-		const dairy = user.dairy;
 		if (!dairy) {
 			// If the user doesn't have a dairy document, create a new one and assign it to the user
 			const newDairy = new Dairy({ dairies: updates.dairies });
@@ -107,7 +116,6 @@ export const update = async (req, res, next) => {
 					}
 				}
 			} else {
-				// If a dairy object with the same date doesn't exist, add the new dairy object
 				dairy.dairies.push(newDairy);
 			}
 		});
@@ -127,8 +135,7 @@ export const getOne = async (req, res, next) => {
 	const nextDay = new Date();
 	nextDay.setHours(3, 0, 0, 0);
 	nextDay.setDate(nextDay.getDate() + 1);
-	// console.log("current date", currentDate.toISOString());
-	// console.log("next day", nextDay);
+
 	const aggregate = await Dairy.aggregate([
 		{
 			$match: {
@@ -162,59 +169,25 @@ export const getTodayDairy = async (req, res, next) => {
 	}
 };
 
-// export const getAllByExpression = async (req, res, next) => {
-// 	const [date] = [req.query.date];
-// 	const splitDate = date.split(";;");
-// 	const aggregate = await Dairy.aggregate([
-// 		{
-// 			$match: {
-// 				$and: [
-// 					{ createdAt: { $gte: new Date(splitDate[0]) } },
-// 					{ createdAt: { $lte: new Date(splitDate[1]) } },
-// 				],
-// 			},
-// 		},
-// 	]);
-// 	return res.json(aggregate);
-// };
-
-// export const getAllByExpression = async (req, res, next) => {
-// 	const userId = req.params.id;
-// 	const startDate = req.query.startDate;
-// 	const endDate = req.query.endDate;
-
-// 	const user = await User.findById(userId).populate("dairy");
-// 	if (!user || !user.dairy) {
-// 		return res.status(404).json({ message: "User or dairy not found" });
-// 	}
-
-// 	const dairy = user.dairy;
-
-// 	const aggregate = await Dairy.aggregate([
-// 		{
-// 			$match: {
-// 				$and: [
-// 					{ createdAt: { $gte: new Date(startDate) } },
-// 					{ createdAt: { $lte: new Date(endDate) } },
-// 				],
-// 			},
-// 		},
-// 	]);
-
-// 	return res.json(aggregate);
-// };
-
 export const getAllByExpression = async (req, res, next) => {
 	const userId = req.params.id;
 	const startDate = req.query.startDate;
 	const endDate = req.query.endDate;
 
 	const user = await User.findById(userId).populate("dairy");
-	if (!user || !user.dairy) {
+	const worker = await Worker.findById(userId).populate("dairy");
+	if ((!user || !user.dairy) && (!worker || !worker.dairy)) {
 		return res.status(404).json({ message: "User or dairy not found" });
 	}
 
-	const dairy = user.dairy;
+	let dairy;
+	if (user && user?.dairy) {
+		dairy = user.dairy;
+	} else if (worker && worker?.dairy) {
+		dairy = worker.dairy;
+	} else {
+		return res.status(404).json({ message: "Document not found for the user" });
+	}
 
 	const filteredDairies = dairy.dairies.filter((d) => {
 		const dairyDate = new Date(d.date);

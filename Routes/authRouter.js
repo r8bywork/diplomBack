@@ -28,6 +28,7 @@ router.get("/get", getUser, (req, res) => {
 	res.json({
 		message: "You have access to this protected route!",
 		user: req.user,
+		worker: req.worker,
 	});
 });
 
