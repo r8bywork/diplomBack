@@ -4,7 +4,8 @@ const WorkerSchema = new Schema({
 	workers: [
 		{
 			username: { type: String, required: true },
-			password: { type: String, required: true },
+			name: { type: String, required: false },
+			password: { type: String, required: false },
 			roles: [String],
 		},
 	],

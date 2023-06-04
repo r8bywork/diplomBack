@@ -1,12 +1,12 @@
+import bcrypt from "bcrypt";
 import User from "../Models/User.js";
 import Worker from "../Models/Worker.js";
-
 //good
 export const createWorker = async (req, res, next) => {
 	try {
 		const { id } = req.params;
-		const { username, password, roles } = req.body.worker[0];
-		console.log(username, password, roles);
+		const { username, password, roles, name } = req.body.worker[0];
+		// console.log(username, password, roles);
 
 		const user = await User.findById(id)
 			.populate("house")
@@ -14,18 +14,21 @@ export const createWorker = async (req, res, next) => {
 			.populate("feedAndAdditives");
 
 		if (!user) {
-			return res.status(404).json({ error: "User not found" });
+			return res.status(404).json({ error: "Пользователь не найден" });
 		}
 
 		const workerDocId = user.workers;
 
+		//Создаем hash пароль использую соль
+		const hashPassword = bcrypt.hashSync(password, 7);
 		if (!workerDocId) {
 			// If the worker document doesn't exist, create a new document and add the worker details
 			const newWorkerDoc = new Worker({
 				workers: [
 					{
+						name,
 						username,
-						password,
+						password: hashPassword,
 						roles,
 					},
 				],
@@ -45,12 +48,13 @@ export const createWorker = async (req, res, next) => {
 			const workerDoc = await Worker.findById(workerDocId);
 
 			if (!workerDoc) {
-				return res.status(404).json({ error: "Worker document not found" });
+				return res.status(404).json({ error: "Документ с рабочим не найден" });
 			}
 
 			workerDoc.workers.push({
+				name,
 				username,
-				password,
+				password: hashPassword,
 				roles,
 			});
 
@@ -61,22 +65,58 @@ export const createWorker = async (req, res, next) => {
 		// Save the user document
 		await user.save();
 
-		res.status(200).json({ message: "Worker created successfully" });
+		res.status(200).json({ message: "Рабочий создан!" });
 	} catch (error) {
-		console.error("Error creating worker:", error);
-		res.status(500).json({ error: "Failed to create worker" });
+		res.status(500).json({ error: "Ошибка создания рабочего!" });
 	}
 };
+
+//good
+// export const updateUser = async (req, res, next) => {
+// 	try {
+// 		const { userId, workerId } = req.body;
+// 		// Находим пользователя по его идентификатору
+// 		const user = await User.findById(userId).populate("workers");
+// 		if (!user) {
+// 			return res.status(404).json({ error: "User not found" });
+// 		}
+
+// 		// Получаем фактический массив рабочих пользователей
+// 		const workersArray = user.workers.workers;
+
+// 		// Находим рабочего пользователя с указанным идентификатором в массиве
+// 		const workerIndex = workersArray.findIndex(
+// 			(worker) => worker._id.toString() === workerId
+// 		);
+
+// 		if (workerIndex === -1) {
+// 			return res.status(404).json({ error: "Worker not found" });
+// 		}
+
+// 		// Обновляем данные рабочего пользователя
+// 		user.workers.workers[workerIndex] = {
+// 			...user.workers[workerIndex],
+// 			...req.body.workers[0],
+// 		};
+
+// 		await user.workers.save();
+
+// 		res.status(200).json({ message: "Worker updated successfully" });
+// 	} catch (error) {
+// 		console.error("Error updating worker:", error);
+// 		res.status(500).json({ error: "Failed to update worker" });
+// 	}
+// };
 
 export const updateUser = async (req, res, next) => {
 	try {
 		const { userId, workerId } = req.body;
+		const { password, ...otherFields } = req.body.workers[0];
 		// Находим пользователя по его идентификатору
 		const user = await User.findById(userId).populate("workers");
 		if (!user) {
-			return res.status(404).json({ error: "User not found" });
+			return res.status(404).json({ error: "Пользователь не найден!" });
 		}
-
 		// Получаем фактический массив рабочих пользователей
 		const workersArray = user.workers.workers;
 
@@ -84,27 +124,38 @@ export const updateUser = async (req, res, next) => {
 		const workerIndex = workersArray.findIndex(
 			(worker) => worker._id.toString() === workerId
 		);
-		console.log(user.workers.workers[workerIndex]);
 
 		if (workerIndex === -1) {
-			return res.status(404).json({ error: "Worker not found" });
+			return res.status(404).json({ error: "Рабочий не найден!" });
 		}
 
 		// Обновляем данные рабочего пользователя
-		user.workers.workers[workerIndex] = {
-			...user.workers[workerIndex],
-			...req.body.workers[0],
+		const updatedWorker = {
+			...user.workers.workers[workerIndex],
+			...otherFields,
 		};
 
+		// Если передан новый пароль, зашифруйте его
+		if (password) {
+			console.log(password);
+			const hashedPassword = await bcrypt.hash(password, 7);
+			updatedWorker.password = hashedPassword;
+		} else {
+			// Если новый пароль не был предоставлен, присвоить существующее значение пароля
+			updatedWorker.password = user.workers.workers[workerIndex].password;
+		}
+
+		updatedWorker.roles = user.workers.workers[workerIndex].roles;
+		user.workers.workers[workerIndex] = updatedWorker;
 		await user.workers.save();
 
-		res.status(200).json({ message: "Worker updated successfully" });
+		res.status(200).json({ message: "Рабочий обновлен!" });
 	} catch (error) {
-		console.error("Error updating worker:", error);
-		res.status(500).json({ error: "Failed to update worker" });
+		res.status(500).json({ error: "Ошибка обновления рабочего!" });
 	}
 };
 
+//good
 export const getWorkerById = async (req, res, next) => {
 	try {
 		const { userId, workerId } = req.body;

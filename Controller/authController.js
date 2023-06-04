@@ -3,6 +3,7 @@ import { validationResult } from "express-validator";
 import jwt from "jsonwebtoken";
 import Role from "../Models/Role.js";
 import User from "../Models/User.js";
+import Worker from "../Models/Worker.js";
 import { secret } from "../config.js";
 
 const generateAccessToken = (id, roles) => {
@@ -42,7 +43,7 @@ export const register = async (req, res) => {
 			email,
 			phoneNumber,
 			organizationName,
-			"roles": ["admin", "superadmin", "founder"]
+			roles: ["admin"],
 		});
 		//Сохраняем его
 		await user.save();
@@ -55,18 +56,54 @@ export const register = async (req, res) => {
 	}
 };
 
+// export const login = async (req, res) => {
+// 	try {
+// 		const { username, password } = req.body;
+// 		const user = await User.findOne({ username });
+// 		if (!user) {
+// 			return res.status(400).json({ message: "Can't find username" });
+// 		}
+// 		const validPassword = bcrypt.compareSync(password, user.password);
+// 		if (!validPassword) {
+// 			return res.status(400).json({ message: "Invalid password" });
+// 		}
+// 		const token = generateAccessToken(user._id, user.roles);
+// 		return res.json({ token });
+// 	} catch (e) {
+// 		console.log(e);
+// 		res.status(400).json({ message: "Login error" });
+// 	}
+// };
+
 export const login = async (req, res) => {
 	try {
 		const { username, password } = req.body;
+
+		// Check if the username belongs to a user
 		const user = await User.findOne({ username });
-		if (!user) {
+		if (user) {
+			// User authentication
+			const validPassword = bcrypt.compareSync(password, user.password);
+			if (!validPassword) {
+				return res.status(401).json({ message: "Invalid password" });
+			}
+			const token = generateAccessToken(user._id, user.roles);
+			return res.json({ token });
+		}
+
+		// If the username doesn't belong to a user, check if it belongs to a worker
+		const worker = await Worker.findOne({ "workers.username": username });
+		if (!worker) {
 			return res.status(400).json({ message: "Can't find username" });
 		}
-		const validPassword = bcrypt.compareSync(password, user.password);
+
+		// Worker authentication
+		const workerData = worker.workers.find((w) => w.username === username);
+		const validPassword = bcrypt.compareSync(password, workerData.password);
 		if (!validPassword) {
-			return res.status(400).json({ message: "Invalid password" });
+			return res.status(401).json({ message: "Invalid password" });
 		}
-		const token = generateAccessToken(user._id, user.roles);
+		const token = generateAccessToken(worker._id, workerData.roles);
 		return res.json({ token });
 	} catch (e) {
 		console.log(e);
