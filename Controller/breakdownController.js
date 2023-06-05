@@ -3,29 +3,6 @@ import User from "../Models/User.js";
 import Worker from "../Models/Worker.js";
 
 // Создать новую поломку
-// export const createBreakdown = async (req, res) => {
-// 	try {
-// 		const { workerId, description } = req.body;
-// 		// Получить информацию о рабочем по идентификатору
-// 		const worker = await Worker.findById(workerId);
-// 		if (!worker) {
-// 			return res.status(404).json({ error: "Рабочий не найден" });
-// 		}
-
-// 		// Создать новую поломку с указанными данными
-// 		const breakdown = await Breakdown.create({
-// 			addedBy: workerId,
-// 			name: worker.name,
-// 			description,
-// 		});
-// 		console.log(breakdown);
-// 		res.status(201).json({ breakdown });
-// 	} catch (error) {
-// 		console.log(error);
-// 		res.status(500).json({ error: "Ошибка при создании поломки" });
-// 	}
-// };
-
 export const createBreakdown = async (req, res) => {
 	try {
 		const { workerId, description } = req.body;
@@ -119,14 +96,37 @@ export const updateBreakdownStatus = async (req, res) => {
 };
 
 // Удалить поломку
+// export const deleteBreakdown = async (req, res) => {
+// 	try {
+// 		const breakdownId = req.params.breakdownId;
+// 		const breakdown = await Breakdown.findByIdAndDelete(breakdownId);
+// 		console.log(breakdown);
+// 		if (!breakdown) {
+// 			return res.status(404).json({ error: "Поломка не найдена" });
+// 		}
+// 		res.json({ message: "Поломка удалена" });
+// 	} catch (error) {
+// 		res.status(500).json({ error: "Ошибка при удалении поломки" });
+// 	}
+// };
+
 export const deleteBreakdown = async (req, res) => {
 	try {
 		const breakdownId = req.params.breakdownId;
+
+		// Найти поломку по идентификатору
 		const breakdown = await Breakdown.findByIdAndDelete(breakdownId);
-		console.log(breakdown);
 		if (!breakdown) {
 			return res.status(404).json({ error: "Поломка не найдена" });
 		}
+
+		// Найти пользователя, содержащего поломку, и удалить ссылку из массива breakdowns
+		const user = await User.findOne({ breakdowns: breakdownId });
+		if (user) {
+			user.breakdowns.pull(breakdownId);
+			await user.save();
+		}
+
 		res.json({ message: "Поломка удалена" });
 	} catch (error) {
 		res.status(500).json({ error: "Ошибка при удалении поломки" });
@@ -144,5 +144,27 @@ export const updateStatus = async (req, res) => {
 		res.json({ message: "Поломка удалена" });
 	} catch (error) {
 		res.status(500).json({ error: "Ошибка при удалении поломки" });
+	}
+};
+
+export const updateBreak = async (req, res) => {
+	const id = req.params.breakdownId;
+	const { description } = req.body;
+
+	try {
+		const breakdown = await Breakdown.findByIdAndUpdate(
+			id,
+			{ description },
+			{ new: true }
+		);
+
+		if (!breakdown) {
+			return res.status(404).json({ message: "Поломка не найдена" });
+		}
+
+		res.json({ breakdown });
+	} catch (error) {
+		console.error(error);
+		res.status(500).json({ message: "Внутренняя ошибка сервера" });
 	}
 };
