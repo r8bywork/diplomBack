@@ -2,6 +2,7 @@ import cors from "cors";
 import express from "express";
 import mongoose from "mongoose";
 import authRouter from "./Routes/authRouter.js";
+import breakdownRouter from "./Routes/breakdownRouter.js";
 import test from "./Routes/cowRouter.js";
 import feedAndAddivitives from "./Routes/feedAndAddivitives.js";
 import houseRouter from "./Routes/houseRouter.js";
@@ -24,6 +25,7 @@ app.use("/feedAndAddivitives", feedAndAddivitives);
 app.use("/user", userRouter);
 app.use("/houses", houseRouter);
 app.use("/worker", workerRouter);
+app.use("/break", breakdownRouter);
 
 const start = async () => {
 	try {

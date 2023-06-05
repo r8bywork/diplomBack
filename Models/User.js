@@ -24,10 +24,18 @@ const User = new Schema({
 		type: Schema.Types.ObjectId,
 		ref: "FeedAndAddivitives",
 	},
-	workers: {
-		type: Schema.Types.ObjectId,
-		ref: "Worker",
-	},
+	workers: [
+		{
+			type: Schema.Types.ObjectId,
+			ref: "Worker",
+		},
+	],
+	breakdowns: [
+		{
+			type: Schema.Types.ObjectId,
+			ref: "Breakdown",
+		},
+	],
 });
 
 export default model("User", User);

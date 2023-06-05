@@ -13,8 +13,8 @@ const router = new Router();
 
 router.put("/update", updateUser);
 router.get("/get/:id", getUser);
-router.get("/getOne", getWorkerById);
-router.delete("/delete", deleteUser);
+router.get("/getOne/:id", getWorkerById);
+router.delete("/delete/:id", deleteUser);
 router.post("/:id", createWorker);
 router.delete("/deleteRole", deleteRole);
 router.put("/addRole", addRole);

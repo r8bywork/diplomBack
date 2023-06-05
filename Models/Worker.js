@@ -1,14 +1,33 @@
 import { Schema, model } from "mongoose";
 
+// const WorkerSchema = new Schema({
+// 	workers: [
+// 		{
+// 			username: { type: String, required: true, select: true },
+// 			name: { type: String, required: false, select: true },
+// 			password: { type: String, required: false },
+// 			roles: [String],
+// 		},
+// 	],
+// 	house: {
+// 		type: Schema.Types.ObjectId,
+// 		ref: "House",
+// 	},
+// 	dairy: {
+// 		type: Schema.Types.ObjectId,
+// 		ref: "Dairy",
+// 	},
+// 	feedAndAdditives: {
+// 		type: Schema.Types.ObjectId,
+// 		ref: "FeedAndAddivitives",
+// 	},
+// });
+
 const WorkerSchema = new Schema({
-	workers: [
-		{
-			username: { type: String, required: true, select: true },
-			name: { type: String, required: false, select: true },
-			password: { type: String, required: false },
-			roles: [String],
-		},
-	],
+	username: { type: String, required: false, select: true },
+	name: { type: String, required: false, select: true },
+	password: { type: String, required: false },
+	roles: [String],
 	house: {
 		type: Schema.Types.ObjectId,
 		ref: "House",
@@ -26,3 +45,7 @@ const WorkerSchema = new Schema({
 const Worker = model("Worker", WorkerSchema);
 
 export default Worker;
+
+// const Worker = model("Worker", WorkerSchema);
+
+// export default Worker;
