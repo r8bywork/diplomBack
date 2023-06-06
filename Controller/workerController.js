@@ -175,3 +175,28 @@ export const addRole = async (req, res, next) => {
 		res.status(500).json({ error: "Ошибка добавления ролей рабочему" });
 	}
 };
+
+export const getUserById = async (req, res, next) => {
+	try {
+		const workerId = req.params.id;
+
+		// Находим рабочего по идентификатору
+		const worker = await Worker.findById(workerId);
+
+		if (!worker) {
+			return res.status(404).json({ message: "Worker not found" });
+		}
+
+		// Находим родительский документ User, содержащий данный рабочий
+		const user = await User.findOne({ workers: workerId });
+
+		if (!user) {
+			return res.status(404).json({ message: "User not found for the worker" });
+		}
+
+		// Возвращаем информацию о документе User
+		res.json(user);
+	} catch (err) {
+		next(err);
+	}
+};

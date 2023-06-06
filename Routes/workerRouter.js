@@ -5,6 +5,7 @@ import {
 	deleteRole,
 	deleteUser,
 	getUser,
+	getUserById,
 	getWorkerById,
 	updateUser,
 } from "../Controller/workerController.js";
@@ -18,5 +19,6 @@ router.delete("/delete/:id", deleteUser);
 router.post("/:id", createWorker);
 router.delete("/deleteRole", deleteRole);
 router.put("/addRole", addRole);
+router.get("/getUser/:id", getUserById);
 
 export default router;
