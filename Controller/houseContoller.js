@@ -4,46 +4,6 @@ import User from "../Models/User.js";
 import Worker from "../Models/Worker.js";
 
 //good
-// export const addHouse = async (req, res, next) => {
-// 	try {
-// 		console.log(req.body);
-// 		const { name, cowsCount } = req.body.houses[0];
-// 		const newHouse = { name, cowsCount };
-
-// 		// Find the user by their username (or any other identifier)
-// 		const user = await User.findOne({ username: req.body.username }); // Assuming you have a way to retrieve the authenticated user's username or other identifier
-// 		if (!user) {
-// 			return res.status(404).json({ message: "User not found" });
-// 		}
-
-// 		// Check if the user already has a house document
-// 		if (user.house) {
-// 			const existingHouse = await House.findById(user.house);
-// 			if (!existingHouse) {
-// 				return res
-// 					.status(404)
-// 					.json({ message: "House document not found for the user" });
-// 			}
-
-// 			existingHouse.houses.push(newHouse);
-// 			await existingHouse.save();
-
-// 			return res.json(existingHouse);
-// 		}
-
-// 		const newDocument = new House({ houses: [newHouse] });
-// 		const savedDocument = await newDocument.save();
-
-// 		// Associate the new house document with the user
-// 		user.house = savedDocument._id;
-// 		await user.save();
-
-// 		return res.json(savedDocument);
-// 	} catch (err) {
-// 		next(err);
-// 	}
-// };
-
 export const addHouse = async (req, res, next) => {
 	try {
 		console.log(req.body);
@@ -73,7 +33,13 @@ export const addHouse = async (req, res, next) => {
 
 			return res.json(existingHouse);
 		} else if (worker && worker.house) {
-			const existingHouse = worker.house;
+			const existingHouse = await House.findById(worker.house);
+			if (!existingHouse) {
+				return res
+					.status(404)
+					.json({ message: "House document not found for the worker" });
+			}
+
 			existingHouse.houses.push(newHouse);
 			await existingHouse.save();
 
@@ -90,6 +56,13 @@ export const addHouse = async (req, res, next) => {
 		} else if (worker) {
 			worker.house = savedDocument._id;
 			await worker.save();
+
+			// Assign the house document to the corresponding user
+			const correspondingUser = await User.findOne({ workers: worker._id });
+			if (correspondingUser) {
+				correspondingUser.house = savedDocument._id;
+				await correspondingUser.save();
+			}
 		}
 
 		return res.json(savedDocument);
@@ -171,25 +144,43 @@ export const deleteHouse = async (req, res, next) => {
 //good
 export const getAllHouses = async (req, res, next) => {
 	try {
-		const { userId } = req.query; // Предположим, что идентификатор пользователя передается в параметрах запроса
+		const { userId } = req.query;
+		let user;
+		let worker;
 
-		// Находим документ пользователя по идентификатору
-		const user = await User.findById(userId).populate("house");
-		const worker = await Worker.findById(userId).populate("house");
-
-		if (!worker && !user) {
-			return res.status(404).json({ message: "User not found" });
+		// Идентификатор является идентификатором пользователя
+		user = await User.findById(userId).populate("house").populate("workers");
+		if (!user) {
+			// Идентификатор является идентификатором рабочего
+			worker = await Worker.findById(userId).populate("house");
+			if (!worker) {
+				return res.status(404).json({ message: "User or worker not found" });
+			}
+			user = await User.findOne({ workers: worker._id })
+				.populate("house")
+				.populate("workers");
+			if (!user) {
+				return res
+					.status(404)
+					.json({ message: "User not found for the worker" });
+			}
 		}
 
 		let houses;
-		if (user && user?.house) {
+		if (user && user.house) {
 			houses = user.house;
-		} else if (worker && worker?.house) {
+		} else if (worker && worker.house) {
 			houses = worker.house;
 		} else {
 			return res
 				.status(404)
-				.json({ message: "Document not found for the user" });
+				.json({ message: "Document not found for the user/worker" });
+		}
+
+		// Если у рабочего нет ссылки на документ house, но есть у пользователя, копируем ссылку с пользователя на рабочего
+		if (worker && !worker.house && user && user.house) {
+			worker.house = user.house;
+			await worker.save();
 		}
 
 		// Получаем домики, связанные с пользователем

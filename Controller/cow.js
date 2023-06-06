@@ -7,7 +7,6 @@ export const create = async (req, res, next) => {
 		const date = new Date();
 		date.setHours(date.getHours() + 3);
 		const dateWithAddedHours = date.toISOString();
-		// const dairy = new Dairy(req.body);
 		const dairy = new Dairy({
 			...req.body,
 			createdAt: dateWithAddedHours,
@@ -18,47 +17,6 @@ export const create = async (req, res, next) => {
 		next(err);
 	}
 };
-
-// export const update = async (req, res, next) => {
-// 	try {
-// 		const dairyDB = await Dairy.findById(req.params.id);
-// 		if (!dairyDB) return res.sendStatus(404);
-// 		const dairyUpdate = await Dairy.findByIdAndUpdate(req.params.id, req.body, {
-// 			new: true,
-// 		});
-// 		return res.json(dairyUpdate);
-// 	} catch (err) {
-// 		next(err);
-// 	}
-// };
-
-// export const update = async (req, res, next) => {
-// 	try {
-// 		const dairyDB = await Dairy.findById(req.params.id);
-// 		if (!dairyDB) return res.sendStatus(404);
-
-// 		const updates = req.body;
-
-// 		for (const field in updates) {
-// 			const value = parseFloat(updates[field]);
-// 			if (isNaN(value)) {
-// 				return res.status(400).json({ error: "Invalid value" });
-// 			}
-
-// 			if (value >= 0) {
-// 				dairyDB[field] += value; // Сложение, если значение положительное
-// 			} else {
-// 				dairyDB[field] -= Math.abs(value); // Вычитание, если значение отрицательное
-// 			}
-// 		}
-
-// 		const dairyUpdate = await dairyDB.save(); // Сохраняем обновленный документ
-
-// 		return res.json(dairyUpdate);
-// 	} catch (err) {
-// 		next(err);
-// 	}
-// };
 
 export const update = async (req, res, next) => {
 	try {
@@ -73,10 +31,6 @@ export const update = async (req, res, next) => {
 			dairy = user.dairy;
 		} else if (worker && worker?.dairy) {
 			dairy = worker.dairy;
-		} else {
-			return res
-				.status(404)
-				.json({ message: "Document not found for the user" });
 		}
 
 		if (!dairy) {
@@ -84,8 +38,20 @@ export const update = async (req, res, next) => {
 			const newDairy = new Dairy({ dairies: updates.dairies });
 			await newDairy.save();
 
-			user.dairy = newDairy._id;
-			await user.save();
+			if (user) {
+				user.dairy = newDairy._id;
+				await user.save();
+			} else if (worker) {
+				worker.dairy = newDairy._id;
+				await worker.save();
+
+				// Assign the dairy document to the corresponding user
+				const user = await User.findOne({ workers: worker._id });
+				if (user) {
+					user.dairy = newDairy._id;
+					await user.save();
+				}
+			}
 
 			return res.json(newDairy);
 		}

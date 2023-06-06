@@ -2,48 +2,6 @@ import FeedAndAddivitives from "../Models/feedAndAddivitives.js";
 import User from "../Models/User.js";
 import Worker from "../Models/Worker.js";
 
-// export const update = async (req, res, next) => {
-// 	try {
-// 		console.log(req.body);
-// 		const userId = req.body.userId;
-// 		const { name, balance, daily_requirement } = req.body.feed_and_additives[0];
-
-// 		// Find the user by their ID
-// 		const user = await User.findById(userId);
-// 		if (!user) {
-// 			return res.status(404).json({ message: "User not found" });
-// 		}
-
-// 		// Check if the user has a reference to the FeedAndAddivitives document
-// 		if (!user.feedAndAdditives) {
-// 			// If no reference exists, create a new document
-// 			const newDocument = new FeedAndAddivitives({
-// 				feed_and_additives: [{ name, balance, daily_requirement }],
-// 			});
-// 			await newDocument.save();
-
-// 			// Update the user with the reference to the new document
-// 			user.feedAndAdditives = newDocument._id;
-// 			await user.save();
-
-// 			return res.json(newDocument);
-// 		} else {
-// 			// If a reference exists, update the existing document
-// 			const document = await FeedAndAddivitives.findById(user.feedAndAdditives);
-// 			if (!document) {
-// 				return res.status(404).json({ message: "Document not found" });
-// 			}
-
-// 			document.feed_and_additives.push({ name, balance, daily_requirement });
-// 			const updatedDocument = await document.save();
-
-// 			return res.json(updatedDocument);
-// 		}
-// 	} catch (err) {
-// 		next(err);
-// 	}
-// };
-
 export const update = async (req, res, next) => {
 	try {
 		console.log(req.body);
@@ -60,7 +18,7 @@ export const update = async (req, res, next) => {
 		// Check if the user or worker has a reference to the FeedAndAdditives document
 		if (!user?.feedAndAdditives && !worker?.feedAndAdditives) {
 			// If no reference exists, create a new document
-			const newDocument = new FeedAndAdditives({
+			const newDocument = new FeedAndAddivitives({
 				feed_and_additives: [{ name, balance, daily_requirement }],
 			});
 			await newDocument.save();
@@ -72,6 +30,13 @@ export const update = async (req, res, next) => {
 			} else {
 				worker.feedAndAdditives = newDocument._id;
 				await worker.save();
+
+				// Assign the feedAndAdditives document to the corresponding user
+				const correspondingUser = await User.findOne({ workers: worker._id });
+				if (correspondingUser) {
+					correspondingUser.feedAndAdditives = newDocument._id;
+					await correspondingUser.save();
+				}
 			}
 
 			return res.json(newDocument);
@@ -172,25 +137,47 @@ export const remove = async (req, res, next) => {
 export const find = async (req, res, next) => {
 	try {
 		const { userId } = req.query;
+		let user;
+		let worker;
 
-		// Find the user by their ID
-		const user = await User.findById(userId).populate("feedAndAdditives");
-		const worker = await Worker.findById(userId).populate("feedAndAdditives");
-
-		if (!worker && !user) {
-			return res.status(404).json({ message: "User not found" });
+		// Идентификатор является идентификатором пользователя
+		user = await User.findById(userId)
+			.populate("feedAndAdditives")
+			.populate("workers");
+		if (!user) {
+			// Идентификатор является идентификатором рабочего
+			worker = await Worker.findById(userId).populate("feedAndAdditives");
+			if (!worker) {
+				return res.status(404).json({ message: "User or worker not found" });
+			}
+			user = await User.findOne({ workers: worker._id })
+				.populate("feedAndAdditives")
+				.populate("workers");
+			if (!user) {
+				return res
+					.status(404)
+					.json({ message: "User not found for the worker" });
+			}
 		}
 
 		let document;
-		if (user && user?.feedAndAdditives) {
+		if (user && user.feedAndAdditives) {
 			document = user.feedAndAdditives;
-		} else if (worker && worker?.feedAndAdditives?.feed_and_additives) {
+		} else if (worker && worker.feedAndAdditives) {
 			document = worker.feedAndAdditives;
 		} else {
 			return res
 				.status(404)
-				.json({ message: "Document not found for the user" });
+				.json({ message: "Document not found for the user/worker" });
 		}
+
+		// Если у рабочего нет ссылки на документ feedAndAdditives, но есть у пользователя, копируем ссылку с пользователя на рабочего
+		if (worker && !worker.feedAndAdditives && user && user.feedAndAdditives) {
+			worker.feedAndAdditives = user.feedAndAdditives;
+			await worker.save();
+		}
+
+		// Возвращаем документ с кормами
 		return res.json(document);
 	} catch (err) {
 		next(err);
