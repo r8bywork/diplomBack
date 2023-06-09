@@ -18,6 +18,84 @@ export const create = async (req, res, next) => {
 	}
 };
 
+// export const update = async (req, res, next) => {
+// 	try {
+// 		const userId = req.params.id;
+// 		const updates = req.body;
+
+// 		const user = await User.findById(userId).populate("dairy");
+// 		const worker = await Worker.findById(userId).populate("dairy");
+
+// 		let dairy;
+// 		if (user && user?.dairy) {
+// 			dairy = user.dairy;
+// 		} else if (worker && worker?.dairy) {
+// 			dairy = worker.dairy;
+// 		}
+
+// 		if (!dairy) {
+// 			// If the user doesn't have a dairy document, create a new one and assign it to the user
+// 			const newDairy = new Dairy({ dairies: updates.dairies });
+// 			await newDairy.save();
+
+// 			if (user) {
+// 				user.dairy = newDairy._id;
+// 				await user.save();
+// 			} else if (worker) {
+// 				worker.dairy = newDairy._id;
+// 				await worker.save();
+
+// 				// Assign the dairy document to the corresponding user
+// 				const user = await User.findOne({ workers: worker._id });
+// 				if (user) {
+// 					user.dairy = newDairy._id;
+// 					await user.save();
+// 				}
+// 			}
+
+// 			return res.json(newDairy);
+// 		}
+
+// 		// Update or add the new object(s) to the existing dairies array
+// 		updates.dairies.forEach((newDairy) => {
+// 			const existingDairy = dairy.dairies.find((d) => {
+// 				const existingDate = new Date(d.date);
+// 				const newDate = new Date(newDairy.date);
+// 				return (
+// 					existingDate.toISOString().split("T")[0] ===
+// 					newDate.toISOString().split("T")[0]
+// 				);
+// 			});
+
+// 			if (existingDairy) {
+// 				// If a dairy object with the same date exists, update its properties
+// 				for (const field in newDairy) {
+// 					const value = parseFloat(newDairy[field]);
+// 					if (isNaN(value)) {
+// 						return res.status(400).json({ error: "Invalid value" });
+// 					}
+
+// 					if (value >= 0) {
+// 						existingDairy[field] += value; // Add the value if it's positive
+// 					} else {
+// 						existingDairy[field] -= Math.abs(value); // Subtract the absolute value if it's negative
+// 					}
+// 				}
+// 			} else {
+// 				dairy.dairies.push(newDairy);
+// 			}
+// 		});
+
+// 		const updatedDairy = await dairy.save();
+
+// 		return res.json(updatedDairy);
+// 	} catch (err) {
+// 		next(err);
+// 	}
+// };
+
+// Функция getAllByExpression без изменений
+
 export const update = async (req, res, next) => {
 	try {
 		const userId = req.params.id;
@@ -34,7 +112,7 @@ export const update = async (req, res, next) => {
 		}
 
 		if (!dairy) {
-			// If the user doesn't have a dairy document, create a new one and assign it to the user
+			// Если документ отсутствует, создаем новый и присваиваем его пользователю или рабочему
 			const newDairy = new Dairy({ dairies: updates.dairies });
 			await newDairy.save();
 
@@ -45,7 +123,6 @@ export const update = async (req, res, next) => {
 				worker.dairy = newDairy._id;
 				await worker.save();
 
-				// Assign the dairy document to the corresponding user
 				const user = await User.findOne({ workers: worker._id });
 				if (user) {
 					user.dairy = newDairy._id;
@@ -56,39 +133,83 @@ export const update = async (req, res, next) => {
 			return res.json(newDairy);
 		}
 
-		// Update or add the new object(s) to the existing dairies array
-		updates.dairies.forEach((newDairy) => {
-			const existingDairy = dairy.dairies.find((d) => {
-				const existingDate = new Date(d.date);
-				const newDate = new Date(newDairy.date);
-				return (
-					existingDate.toISOString().split("T")[0] ===
-					newDate.toISOString().split("T")[0]
-				);
-			});
-
-			if (existingDairy) {
-				// If a dairy object with the same date exists, update its properties
-				for (const field in newDairy) {
-					const value = parseFloat(newDairy[field]);
-					if (isNaN(value)) {
-						return res.status(400).json({ error: "Invalid value" });
-					}
-
-					if (value >= 0) {
-						existingDairy[field] += value; // Add the value if it's positive
-					} else {
-						existingDairy[field] -= Math.abs(value); // Subtract the absolute value if it's negative
-					}
-				}
-			} else {
-				dairy.dairies.push(newDairy);
-			}
+		const today = new Date();
+		const todayDairy = dairy.dairies.find((d) => {
+			const dairyDate = new Date(d.date);
+			return (
+				dairyDate.toISOString().split("T")[0] ===
+				today.toISOString().split("T")[0]
+			);
 		});
 
-		const updatedDairy = await dairy.save();
+		if (todayDairy) {
+			// Если сегодняшний документ уже существует, обновляем его поля согласно запросу
+			updates.dairies.forEach((newDairy) => {
+				const existingDairy = dairy.dairies.find((d) => {
+					const existingDate = new Date(d.date);
+					const newDate = new Date(newDairy.date);
+					return (
+						existingDate.toISOString().split("T")[0] ===
+						newDate.toISOString().split("T")[0]
+					);
+				});
 
-		return res.json(updatedDairy);
+				if (existingDairy) {
+					// Обновляем поля объекта, если он существует
+					for (const field in newDairy) {
+						const value = parseFloat(newDairy[field]);
+						if (isNaN(value)) {
+							return res.status(400).json({ error: "Invalid value" });
+						}
+
+						if (value >= 0) {
+							existingDairy[field] += value;
+						} else {
+							existingDairy[field] -= Math.abs(value);
+						}
+					}
+				} else {
+					// Добавляем новый объект в массив документов
+					dairy.dairies.push(newDairy);
+				}
+			});
+
+			await dairy.save();
+			return res.json(dairy);
+		} else {
+			const previousDairies = dairy.dairies.filter(
+				(d) => new Date(d.date) < today
+			);
+
+			if (previousDairies.length > 0) {
+				// Вычисляем сумму полей из предыдущих документов
+				const newDairy = updates.dairies[0];
+				const sumFields = [
+					"stillbirths",
+					"heifers",
+					"cows",
+					"young_animal_losses",
+					"losses_during_fattening_of_cows",
+					"losses_of_main_herd_cows",
+				];
+
+				sumFields.forEach((field) => {
+					newDairy[field] = previousDairies.reduce(
+						(sum, prevDairy) => sum + prevDairy[field],
+						newDairy[field]
+					);
+				});
+
+				dairy.dairies.push(newDairy);
+				await dairy.save();
+				return res.json(dairy);
+			} else {
+				// Добавляем новый объект на сегодняшний день без вычисления суммы
+				dairy.dairies.push(updates.dairies[0]);
+				await dairy.save();
+				return res.json(dairy);
+			}
+		}
 	} catch (err) {
 		next(err);
 	}

@@ -1,6 +1,7 @@
-import FeedAndAddivitives from "../Models/feedAndAddivitives.js";
+import moment from "moment/moment.js";
 import User from "../Models/User.js";
 import Worker from "../Models/Worker.js";
+import FeedAndAddivitives from "../Models/feedAndAddivitives.js";
 
 export const update = async (req, res, next) => {
 	try {
@@ -134,6 +135,56 @@ export const remove = async (req, res, next) => {
 	}
 };
 
+// export const find = async (req, res, next) => {
+// 	try {
+// 		const { userId } = req.query;
+// 		let user;
+// 		let worker;
+
+// 		// Идентификатор является идентификатором пользователя
+// 		user = await User.findById(userId)
+// 			.populate("feedAndAdditives")
+// 			.populate("workers");
+// 		if (!user) {
+// 			// Идентификатор является идентификатором рабочего
+// 			worker = await Worker.findById(userId).populate("feedAndAdditives");
+// 			if (!worker) {
+// 				return res.status(404).json({ message: "User or worker not found" });
+// 			}
+// 			user = await User.findOne({ workers: worker._id })
+// 				.populate("feedAndAdditives")
+// 				.populate("workers");
+// 			if (!user) {
+// 				return res
+// 					.status(404)
+// 					.json({ message: "User not found for the worker" });
+// 			}
+// 		}
+
+// 		let document;
+// 		if (user && user.feedAndAdditives) {
+// 			document = user.feedAndAdditives;
+// 		} else if (worker && worker.feedAndAdditives) {
+// 			document = worker.feedAndAdditives;
+// 		} else {
+// 			return res
+// 				.status(404)
+// 				.json({ message: "Document not found for the user/worker" });
+// 		}
+
+// 		// Если у рабочего нет ссылки на документ feedAndAdditives, но есть у пользователя, копируем ссылку с пользователя на рабочего
+// 		if (worker && !worker.feedAndAdditives && user && user.feedAndAdditives) {
+// 			worker.feedAndAdditives = user.feedAndAdditives;
+// 			await worker.save();
+// 		}
+
+// 		// Возвращаем документ с кормами
+// 		return res.json(document);
+// 	} catch (err) {
+// 		next(err);
+// 	}
+// };
+
 export const find = async (req, res, next) => {
 	try {
 		const { userId } = req.query;
@@ -175,6 +226,23 @@ export const find = async (req, res, next) => {
 		if (worker && !worker.feedAndAdditives && user && user.feedAndAdditives) {
 			worker.feedAndAdditives = user.feedAndAdditives;
 			await worker.save();
+		}
+
+		const today = moment().startOf("day").toDate();
+		const isAlreadyDecremented = document.feed_and_additives.some((feed) => {
+			return (
+				moment(document.updatedAt).startOf("day").toDate().getTime() ===
+				today.getTime()
+			);
+		});
+
+		// Decrement balance if it hasn't been decremented today
+		if (!isAlreadyDecremented) {
+			document.feed_and_additives.forEach((feed) => {
+				feed.balance -= feed.daily_requirement;
+			});
+
+			await document.save();
 		}
 
 		// Возвращаем документ с кормами
